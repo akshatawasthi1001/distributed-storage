@@ -11,6 +11,8 @@ router = APIRouter()
 
 STORAGE_DIR = "storage"
 
+os.makedirs(STORAGE_DIR, exist_ok=True)
+
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
