@@ -13,6 +13,7 @@ STORAGE_DIR = "storage"
 
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
+
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -42,3 +43,19 @@ async def upload_file(
         "size": new_file.size,
         "saved_at": new_file.storage_path
     }
+
+
+@router.get("/files")
+def list_files(db: Session = Depends(get_db)):
+
+    files = db.query(FileModel).all()
+
+    return [
+        {
+            "id": str(file.id),
+            "filename": file.filename,
+            "size": file.size,
+            "storage_path": file.storage_path
+        }
+        for file in files
+    ]
