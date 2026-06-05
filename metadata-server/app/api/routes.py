@@ -1,7 +1,8 @@
 import os
 import shutil
 
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -59,3 +60,25 @@ def list_files(db: Session = Depends(get_db)):
         }
         for file in files
     ]
+
+@router.get("/download/{file_id}")
+def download_file(
+    file_id: str,
+    db: Session = Depends(get_db)
+):
+
+    file_record = db.query(FileModel).filter(
+        FileModel.id == file_id
+    ).first()
+
+    if not file_record:
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    return FileResponse(
+        path=file_record.storage_path,
+        filename=file_record.filename,
+        media_type="application/octet-stream"
+    )
