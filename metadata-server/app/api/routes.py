@@ -82,3 +82,52 @@ def download_file(
         filename=file_record.filename,
         media_type="application/octet-stream"
     )
+
+@router.delete("/files/{file_id}")
+def delete_file(
+    file_id: str,
+    db: Session = Depends(get_db)
+):
+
+    file_record = db.query(FileModel).filter(
+        FileModel.id == file_id
+    ).first()
+
+    if not file_record:
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    if os.path.exists(file_record.storage_path):
+        os.remove(file_record.storage_path)
+
+    db.delete(file_record)
+    db.commit()
+
+    return {
+        "message": "File deleted successfully",
+        "file_id": file_id
+    }
+@router.get("/files/{file_id}")
+def get_file_metadata(
+    file_id: str,
+    db: Session = Depends(get_db)
+):
+
+    file_record = db.query(FileModel).filter(
+        FileModel.id == file_id
+    ).first()
+
+    if not file_record:
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    return {
+        "id": str(file_record.id),
+        "filename": file_record.filename,
+        "size": file_record.size,
+        "storage_path": file_record.storage_path
+    }
