@@ -109,6 +109,52 @@ def delete_file(
         "message": "File deleted successfully",
         "file_id": file_id
     }
+
+@router.put("/files/{file_id}")
+async def replace_file(
+    file_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+
+    file_record = db.query(FileModel).filter(
+        FileModel.id == file_id
+    ).first()
+
+    if not file_record:
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    # Remove old file
+    if os.path.exists(file_record.storage_path):
+        os.remove(file_record.storage_path)
+
+    # Save new file
+    new_path = os.path.join(
+        STORAGE_DIR,
+        file.filename
+    )
+
+    with open(new_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Update metadata
+    file_record.filename = file.filename
+    file_record.storage_path = new_path
+    file_record.size = os.path.getsize(new_path)
+
+    db.commit()
+    db.refresh(file_record)
+
+    return {
+        "message": "File updated successfully",
+        "file_id": str(file_record.id),
+        "filename": file_record.filename,
+        "size": file_record.size
+    }
+
 @router.get("/files/{file_id}")
 def get_file_metadata(
     file_id: str,
