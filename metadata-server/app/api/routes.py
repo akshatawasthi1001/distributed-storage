@@ -3,6 +3,7 @@ import shutil
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
+from fastapi import Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -50,6 +51,26 @@ async def upload_file(
 def list_files(db: Session = Depends(get_db)):
 
     files = db.query(FileModel).all()
+
+    return [
+        {
+            "id": str(file.id),
+            "filename": file.filename,
+            "size": file.size,
+            "storage_path": file.storage_path
+        }
+        for file in files
+    ]
+
+@router.get("/files/search")
+def search_files(
+    filename: str = Query(...),
+    db: Session = Depends(get_db)
+):
+
+    files = db.query(FileModel).filter(
+        FileModel.filename.ilike(f"%{filename}%")
+    ).all()
 
     return [
         {
