@@ -1,9 +1,15 @@
 import os
 import shutil
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    Depends,
+    HTTPException,
+    Query
+)
 from fastapi.responses import FileResponse
-from fastapi import Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -48,9 +54,20 @@ async def upload_file(
 
 
 @router.get("/files")
-def list_files(db: Session = Depends(get_db)):
+def list_files(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
 
-    files = db.query(FileModel).all()
+    offset = (page - 1) * limit
+
+    files = (
+        db.query(FileModel)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
     return [
         {
@@ -61,6 +78,7 @@ def list_files(db: Session = Depends(get_db)):
         }
         for file in files
     ]
+
 
 @router.get("/files/search")
 def search_files(
@@ -81,6 +99,7 @@ def search_files(
         }
         for file in files
     ]
+
 
 @router.get("/download/{file_id}")
 def download_file(
@@ -103,6 +122,7 @@ def download_file(
         filename=file_record.filename,
         media_type="application/octet-stream"
     )
+
 
 @router.delete("/files/{file_id}")
 def delete_file(
@@ -131,6 +151,7 @@ def delete_file(
         "file_id": file_id
     }
 
+
 @router.put("/files/{file_id}")
 async def replace_file(
     file_id: str,
@@ -148,11 +169,9 @@ async def replace_file(
             detail="File not found"
         )
 
-    # Remove old file
     if os.path.exists(file_record.storage_path):
         os.remove(file_record.storage_path)
 
-    # Save new file
     new_path = os.path.join(
         STORAGE_DIR,
         file.filename
@@ -161,7 +180,6 @@ async def replace_file(
     with open(new_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Update metadata
     file_record.filename = file.filename
     file_record.storage_path = new_path
     file_record.size = os.path.getsize(new_path)
@@ -175,6 +193,7 @@ async def replace_file(
         "filename": file_record.filename,
         "size": file_record.size
     }
+
 
 @router.get("/files/{file_id}")
 def get_file_metadata(
