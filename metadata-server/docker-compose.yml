@@ -1,0 +1,35 @@
+services:
+  api:
+    build: .
+    container_name: metadata-server
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./storage:/app/storage
+
+    depends_on:
+      - postgres
+
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/distributed_storage
+
+  postgres:
+    image: postgres:16
+
+    container_name: metadata-db
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: distributed_storage
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
