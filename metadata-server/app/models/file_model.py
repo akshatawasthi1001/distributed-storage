@@ -1,9 +1,12 @@
 import uuid
 
-from sqlalchemy import Column, String, BigInteger
+from sqlalchemy import Column, String, BigInteger, DateTime
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from app.db.database import Base
+
 
 class File(Base):
     __tablename__ = "files"
@@ -15,3 +18,16 @@ class File(Base):
     storage_path = Column(String, nullable=False)
 
     size = Column(BigInteger)
+
+    current_version = Column(BigInteger, default=1)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    versions = relationship(
+        "FileVersion",
+        back_populates="file",
+        cascade="all, delete-orphan"
+    )

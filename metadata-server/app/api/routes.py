@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.file_model import File as FileModel
+from app.models.file_version_model import FileVersion
 
 router = APIRouter()
 
@@ -44,6 +45,16 @@ async def upload_file(
     db.add(new_file)
     db.commit()
     db.refresh(new_file)
+
+    version = FileVersion(
+        file_id=new_file.id,
+        version=1,
+        storage_path=new_file.storage_path,
+        size=new_file.size
+    )
+
+    db.add(version)
+    db.commit()
 
     return {
         "file_id": str(new_file.id),
@@ -169,21 +180,39 @@ async def replace_file(
             detail="File not found"
         )
 
-    if os.path.exists(file_record.storage_path):
-        os.remove(file_record.storage_path)
+    # Increment version
+    new_version = file_record.current_version + 1
+
+    # Generate unique filename
+    _, extension = os.path.splitext(file.filename)
+    new_filename = f"{file_record.id}_v{new_version}{extension}"
 
     new_path = os.path.join(
         STORAGE_DIR,
-        file.filename
+        new_filename
     )
 
+    # Save new file
     with open(new_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    new_size = os.path.getsize(new_path)
+
+    # Update latest file metadata
     file_record.filename = file.filename
     file_record.storage_path = new_path
-    file_record.size = os.path.getsize(new_path)
+    file_record.size = new_size
+    file_record.current_version = new_version
 
+    # Store version history
+    version = FileVersion(
+        file_id=file_record.id,
+        version=new_version,
+        storage_path=new_path,
+        size=new_size
+    )
+
+    db.add(version)
     db.commit()
     db.refresh(file_record)
 
@@ -191,9 +220,9 @@ async def replace_file(
         "message": "File updated successfully",
         "file_id": str(file_record.id),
         "filename": file_record.filename,
+        "current_version": file_record.current_version,
         "size": file_record.size
     }
-
 
 @router.get("/files/{file_id}")
 def get_file_metadata(
