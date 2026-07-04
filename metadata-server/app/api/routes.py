@@ -19,9 +19,12 @@ from app.models.file_version_model import FileVersion
 router = APIRouter()
 
 STORAGE_DIR = "storage"
-
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
+
+# ===========================
+# Upload File
+# ===========================
 
 @router.post("/upload")
 async def upload_file(
@@ -64,6 +67,10 @@ async def upload_file(
     }
 
 
+# ===========================
+# List Files
+# ===========================
+
 @router.get("/files")
 def list_files(
     page: int = Query(1, ge=1),
@@ -91,6 +98,10 @@ def list_files(
     ]
 
 
+# ===========================
+# Search Files
+# ===========================
+
 @router.get("/files/search")
 def search_files(
     filename: str = Query(...),
@@ -111,6 +122,10 @@ def search_files(
         for file in files
     ]
 
+
+# ===========================
+# Download Latest Version
+# ===========================
 
 @router.get("/download/{file_id}")
 def download_file(
@@ -134,6 +149,10 @@ def download_file(
         media_type="application/octet-stream"
     )
 
+
+# ===========================
+# Delete File
+# ===========================
 
 @router.delete("/files/{file_id}")
 def delete_file(
@@ -163,6 +182,10 @@ def delete_file(
     }
 
 
+# ===========================
+# Replace File (Create New Version)
+# ===========================
+
 @router.put("/files/{file_id}")
 async def replace_file(
     file_id: str,
@@ -180,10 +203,8 @@ async def replace_file(
             detail="File not found"
         )
 
-    # Increment version
     new_version = file_record.current_version + 1
 
-    # Generate unique filename
     _, extension = os.path.splitext(file.filename)
     new_filename = f"{file_record.id}_v{new_version}{extension}"
 
@@ -192,19 +213,16 @@ async def replace_file(
         new_filename
     )
 
-    # Save new file
     with open(new_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     new_size = os.path.getsize(new_path)
 
-    # Update latest file metadata
     file_record.filename = file.filename
     file_record.storage_path = new_path
     file_record.size = new_size
     file_record.current_version = new_version
 
-    # Store version history
     version = FileVersion(
         file_id=file_record.id,
         version=new_version,
@@ -223,6 +241,82 @@ async def replace_file(
         "current_version": file_record.current_version,
         "size": file_record.size
     }
+
+
+# ===========================
+# Version History
+# ===========================
+
+@router.get("/files/{file_id}/versions")
+def get_file_versions(
+    file_id: str,
+    db: Session = Depends(get_db)
+):
+
+    file = db.query(FileModel).filter(
+        FileModel.id == file_id
+    ).first()
+
+    if not file:
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    versions = (
+        db.query(FileVersion)
+        .filter(FileVersion.file_id == file_id)
+        .order_by(FileVersion.version.asc())
+        .all()
+    )
+
+    return [
+        {
+            "version": version.version,
+            "size": version.size,
+            "storage_path": version.storage_path,
+            "created_at": version.created_at
+        }
+        for version in versions
+    ]
+
+
+# ===========================
+# Download Specific Version
+# ===========================
+
+@router.get("/files/{file_id}/versions/{version}/download")
+def download_specific_version(
+    file_id: str,
+    version: int,
+    db: Session = Depends(get_db)
+):
+
+    version_record = (
+        db.query(FileVersion)
+        .filter(
+            FileVersion.file_id == file_id,
+            FileVersion.version == version
+        )
+        .first()
+    )
+
+    if not version_record:
+        raise HTTPException(
+            status_code=404,
+            detail="Version not found"
+        )
+
+    return FileResponse(
+        path=version_record.storage_path,
+        filename=os.path.basename(version_record.storage_path),
+        media_type="application/octet-stream"
+    )
+
+
+# ===========================
+# Get File Metadata
+# ===========================
 
 @router.get("/files/{file_id}")
 def get_file_metadata(
@@ -244,5 +338,6 @@ def get_file_metadata(
         "id": str(file_record.id),
         "filename": file_record.filename,
         "size": file_record.size,
-        "storage_path": file_record.storage_path
+        "storage_path": file_record.storage_path,
+        "current_version": file_record.current_version
     }
