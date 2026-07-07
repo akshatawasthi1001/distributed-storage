@@ -19,7 +19,8 @@ from app.services.file_service import (
     download_file,
     get_file_metadata,
     search_files,
-    delete_file
+    delete_file,
+    list_files
 )
 from app.services.version_service import (
     replace_file,
@@ -49,31 +50,17 @@ async def upload_file(
 # ===========================
 
 @router.get("/files")
-def list_files(
+def list_all_files(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
 
-    offset = (page - 1) * limit
-
-    files = (
-        db.query(FileModel)
-        .offset(offset)
-        .limit(limit)
-        .all()
+    return list_files(
+        page,
+        limit,
+        db
     )
-
-    return [
-        {
-            "id": str(file.id),
-            "filename": file.filename,
-            "size": file.size,
-            "storage_path": file.storage_path
-        }
-        for file in files
-    ]
-
 
 # ===========================
 # Search Files

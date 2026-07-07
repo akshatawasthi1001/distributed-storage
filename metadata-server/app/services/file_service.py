@@ -94,3 +94,28 @@ def get_file_metadata(file_id: str, db: Session):
         "storage_path": file_record.storage_path,
         "current_version": file_record.current_version
     }
+
+def list_files(
+    page: int,
+    limit: int,
+    db: Session
+):
+
+    offset = (page - 1) * limit
+
+    files = (
+        db.query(FileModel)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(file.id),
+            "filename": file.filename,
+            "size": file.size,
+            "storage_path": file.storage_path
+        }
+        for file in files
+    ]
