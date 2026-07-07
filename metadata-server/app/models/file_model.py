@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, BigInteger, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey
 
 from app.db.database import Base
 
@@ -14,6 +15,11 @@ class File(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     filename = Column(String, nullable=False)
+
+    owner_id = Column(
+    UUID(as_uuid=True),
+    ForeignKey("users.id")
+    )
 
     storage_path = Column(String, nullable=False)
 
@@ -31,3 +37,10 @@ class File(Base):
         back_populates="file",
         cascade="all, delete-orphan"
     )
+
+    owner = relationship(
+    "User",
+    back_populates="files"
+    )
+
+    
