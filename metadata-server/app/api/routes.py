@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models.file_model import File as FileModel
 from app.models.file_version_model import FileVersion
 from app.services.upload_service import upload_new_file
+from app.core.dependencies import get_current_user
 from app.services.file_service import (
     download_file,
     get_file_metadata,
@@ -40,10 +41,15 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
-    return upload_new_file(file, db)
+    return upload_new_file(
+    file,
+    db,
+    current_user
+)
 
 # ===========================
 # List Files
@@ -53,13 +59,15 @@ async def upload_file(
 def list_all_files(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     return list_files(
         page,
         limit,
-        db
+        db,
+        current_user
     )
 
 # ===========================
@@ -69,10 +77,11 @@ def list_all_files(
 @router.get("/files/search")
 def search(
     filename: str = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
-    return search_files(filename, db)
+    return search_files(filename, db, current_user)
 
 # ===========================
 # Download Latest Version
@@ -81,10 +90,11 @@ def search(
 @router.get("/download/{file_id}")
 def download(
     file_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
-    return download_file(file_id, db)
+    return download_file(file_id, db, current_user)
 
 
 # ===========================
@@ -94,10 +104,11 @@ def download(
 @router.delete("/files/{file_id}")
 def delete(
     file_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
-    return delete_file(file_id, db)
+    return delete_file(file_id, db, current_user)
 
 # ===========================
 # Replace File (Create New Version)
@@ -107,13 +118,15 @@ def delete(
 async def replace(
     file_id: str,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     return replace_file(
         file_id,
         file,
-        db
+        db,
+        current_user
     )
 # ===========================
 # Version History
@@ -122,12 +135,14 @@ async def replace(
 @router.get("/files/{file_id}/versions")
 def versions(
     file_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     return get_versions(
         file_id,
-        db
+        db,
+        current_user
     )
 # ===========================
 # Download Specific Version
@@ -137,13 +152,15 @@ def versions(
 def version_download(
     file_id: str,
     version: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
     return download_version(
         file_id,
         version,
-        db
+        db,
+        current_user
     )
 
 # ===========================
@@ -153,7 +170,8 @@ def version_download(
 @router.get("/files/{file_id}")
 def file_metadata(
     file_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
 
-    return get_file_metadata(file_id, db)
+    return get_file_metadata(file_id, db, current_user)

@@ -14,12 +14,16 @@ STORAGE_DIR = "storage"
 def replace_file(
     file_id: str,
     file,
-    db: Session
+    db: Session,
+    current_user
 ):
 
     file_record = (
         db.query(FileModel)
-        .filter(FileModel.id == file_id)
+        .filter(
+            FileModel.id == file_id,
+            FileModel.owner_id == current_user.id
+        )
         .first()
     )
 
@@ -29,10 +33,8 @@ def replace_file(
             detail="File not found"
         )
 
-    # Increment version
     new_version = file_record.current_version + 1
 
-    # Generate unique filename
     _, extension = os.path.splitext(file.filename)
 
     new_filename = (
@@ -44,27 +46,27 @@ def replace_file(
         new_filename
     )
 
-    # Save new file
     with open(new_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        shutil.copyfileobj(
+            file.file,
+            buffer
+        )
 
     new_size = os.path.getsize(new_path)
 
-    # Update latest metadata
     file_record.filename = file.filename
     file_record.storage_path = new_path
     file_record.size = new_size
     file_record.current_version = new_version
 
-    # Save version history
-    version = FileVersion(
+    version_record = FileVersion(
         file_id=file_record.id,
         version=new_version,
         storage_path=new_path,
         size=new_size
     )
 
-    db.add(version)
+    db.add(version_record)
     db.commit()
     db.refresh(file_record)
 
@@ -79,12 +81,16 @@ def replace_file(
 
 def get_versions(
     file_id: str,
-    db: Session
+    db: Session,
+    current_user
 ):
 
     file = (
         db.query(FileModel)
-        .filter(FileModel.id == file_id)
+        .filter(
+            FileModel.id == file_id,
+            FileModel.owner_id == current_user.id
+        )
         .first()
     )
 
@@ -115,8 +121,24 @@ def get_versions(
 def download_version(
     file_id: str,
     version: int,
-    db: Session
+    db: Session,
+    current_user
 ):
+
+    file = (
+        db.query(FileModel)
+        .filter(
+            FileModel.id == file_id,
+            FileModel.owner_id == current_user.id
+        )
+        .first()
+    )
+
+    if not file:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied"
+        )
 
     version_record = (
         db.query(FileVersion)

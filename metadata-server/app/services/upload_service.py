@@ -11,7 +11,11 @@ STORAGE_DIR = "storage"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
 
-def upload_new_file(file, db: Session):
+def upload_new_file(
+    file,
+    db: Session,
+    current_user
+):
 
     file_path = os.path.join(
         STORAGE_DIR,
@@ -29,7 +33,9 @@ def upload_new_file(file, db: Session):
     new_file = FileModel(
         filename=file.filename,
         storage_path=file_path,
-        size=file_size
+        size=file_size,
+        current_version=1,
+        owner_id=current_user.id
     )
 
     db.add(new_file)
