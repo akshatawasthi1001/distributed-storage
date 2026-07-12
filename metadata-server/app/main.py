@@ -1,5 +1,6 @@
 import time
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from sqlalchemy.exc import OperationalError
 
@@ -12,6 +13,16 @@ from app.models.file_model import File
 from app.models.file_version_model import FileVersion
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
